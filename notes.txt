@@ -1,0 +1,123 @@
+downloads		
+desktop			
+Documents		
+jonmu			Done
+
+
+Eleventy Notes
+
+start with html of all pages you will serve
+
+initialise project: npm init -y
+					npm install @11ty/eleventy --save-dev   (we need this on development side only)
+					In package.json:
+						"scripts": {
+							"start": "eleventy --serve",
+							"build": "eleventy",
+						  },
+					Create configuration file: .eleventy.js
+						start by configuring where input is coming from and where site will be served:
+						module.exports = function(eleventyConfig) {  // Return the configuration object
+						  return {
+							dir: {
+							  input: "src",
+							  output: "public"
+							}
+						  };
+						}
+						
+To start with css is not transfered.
+
+Add the following so that assets are also copied (including CSS)
+  eleventyConfig.addPassthroughCopy("./src/style.css"); // Copy assets folder to output  
+  eleventyConfig.addPassthroughCopy("./src/assets"); // Copy assets folder to output
+  
+		! tab to create base html template 
+		Create _includes in src and create base.njk. base.njk is the base template
+
+			<!DOCTYPE html>
+			<html lang="en">
+			<head>
+				<meta charset="UTF-8">
+				<meta name="viewport" content="width=device-width, initial-scale=1.0">
+				<title>{{title}}</title>
+			</head>
+			<body>
+				<h1>{{title}}</h1>
+				{{content | safe }}
+			</body>
+			</html>
+			
+			{{title}}: wherever this is included, replace it with meta data
+			{{content | safe }} Replace this with whatever is outside the --- ---
+			
+			In base.njk{% include 'header.njk' %} The reason we use {% instead of {{
+				{{ grabs stuff from front matter, {% grabs stuff _includes
+		index.html, change it to index.njk
+		front matter: meta information that page can use
+		---
+		title: example
+		layout: 'base.njk'
+		---
+
+Collections are an important feature of 11ty. Colleactions are defined through tags which are definbed in the front matter.
+
+If in a folder 'blog' each file should be assigned a tag, define blog.json in the file and write:
+	{
+    "tags" : "post"
+	}
+
+this will assign the "post" tag for each file.
+In order to loop through a collection and use it's meta data we dow something along the lines of the below. Some ontes on this:
+	1. for & endfor is used to loop through the collection. We use reverse so that the newer one appears first.
+	2. {{post.data.tag}} this is how we look at the front matter at the top of the posts
+	3. for links we use {{post.url}} as this is not front matter but is generated automatically. 
+	4. postDate is a filter defined in .elevent.js
+
+		<ul role="list" class="articles__list flow">
+		{%- for post in collections.post | reverse -%} {# reverse reverses the posts #}
+		<li>
+			<article class="snippet">
+				<img src="{{post.data.image}}" alt="{{post.data.imageAlt}}" class="snippet__image">
+				<h3 class="snippet__title"><a href="{{ post.url }}">{{post.data.title}}</a></h3>
+				<p class="snippet__meta">by <span>{{post.data.author}}</span> on <span>{{post.date | postDate}}</span></p>
+				<p class="snippet__body">{{post.data.description}}</p>   
+				<a href="{{post.url}}" class="btn btn--primary">Continue Reading</a>
+			</article>
+		</li>
+		{%- endfor -%}
+		</ul>
+	
+	In .eleventy.js define the filter:
+		const { DateTime } = require("luxon")
+
+		module.exports = function(eleventyConfig) {  // Return the configuration object
+		
+		eleventyConfig.addPassthroughCopy("./src/style.css"); // Copy assets folder to output  
+		eleventyConfig.addPassthroughCopy("./src/assets"); // Copy assets folder to output
+
+		eleventyConfig.addFilter("postDate", (dateObj) => {
+			return DateTime.fromJSDate(dateObj).toLocaleString(DateTime.DATE_MED)
+		});
+
+		return {
+			dir: {
+			input: "src",
+			output: "public"
+			}
+		};
+		}
+
+To create the article pages, we create another article.njk. This will nest layouts as an article will have layout article.njk that will call base.njk
+We can assign article.njk as the layout of each article by including it in the blog.json file:
+	{
+		"tags" : "post",
+		"layout" : "article.njk"
+	}
+
+Instead oif having the article snippet embedded in the index.njk or blog.njk, if this is being reused multiple times, we can include it in a seperate file under _includes and refer to it using include:
+    <ul role="list" class="articles__list flow">
+      {%- for post in collections.featured | reverse -%} {# reverse reverses the posts #}
+        {% include 'article-snippet.njk' %}
+      {%- endfor -%}
+    </ul>
